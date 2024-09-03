@@ -1,6 +1,10 @@
-<img src="./images/logo.sample.png" alt="Logo of the project" align="right">
+<img src="./images/sample_logo.png" alt="Logo of the project" align="right">
 
-# Name of the project &middot; [![Build Status](https://img.shields.io/travis/npm/npm/latest.svg?style=flat-square)](https://travis-ci.org/npm/npm) [![npm](https://img.shields.io/npm/v/npm.svg?style=flat-square)](https://www.npmjs.com/package/npm) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/your/your-project/blob/master/LICENSE)
+# Name of our project
+[![Language](https://img.shields.io/badge/python-3.12.5-blue)](https://docs.python.org/3/)
+[![Team](https://img.shields.io/badge/our%20team%20name-000080)](https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUXbmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXA%3D)
+[![Build Status](https://img.shields.io/badge/sample_text-with_hyperlink-green)](https://github.com/rudiandradi/AiTalentHack_RetailDemandForecast/tree/main)
+
 > Additional information or tag line
 
 A brief description of your project, what it is used for.
