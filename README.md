@@ -2,7 +2,7 @@
 
 # Name of our project
 [![Language](https://img.shields.io/badge/python-3.12.5-blue)](https://docs.python.org/3/)
-[![Team](https://img.shields.io/badge/our%20team%20name-000080)](https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUXbmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXA%3D)
+[![Team](https://img.shields.io/badge/таких%20yield%20вы%20ещё%20не%20видели-000080)](https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUXbmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXA%3D)
 [![Build Status](https://img.shields.io/badge/sample_text-with_hyperlink-green)](https://github.com/rudiandradi/AiTalentHack_RetailDemandForecast/tree/main)
 
 > Additional information or tag line
