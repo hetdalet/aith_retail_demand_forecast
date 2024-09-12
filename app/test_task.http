@@ -1,0 +1,15 @@
+###
+#@name Create task
+POST http://{{host}}:{{port}}/services/dummy/task
+Accept: application/json
+Cookie: mlbilling=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIxQGV4YW1wbGUuY29tIiwiZXhwIjoxNzE0OTI5MjMzfQ.jMRNvdBqbtfAIDyQJBrQiXqASQRyP9Ts3wWVPzXr7ds
+
+{
+    "input": "Ghost riders"
+}
+
+> {%
+    client.test("Response status", function() {
+        client.assert(response.status === 200, "Response status != 200");
+    });
+%}
