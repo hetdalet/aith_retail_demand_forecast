@@ -14,6 +14,7 @@ class SingletonMeta(type):
 
 
 class EchoModel(metaclass=SingletonMeta):
+    name = 'echo'
 
     def __init__(self):
         self._model = None
@@ -28,4 +29,4 @@ class EchoModel(metaclass=SingletonMeta):
         return data.upper()
 
 
-echo_model = EchoModel()
+model = EchoModel()

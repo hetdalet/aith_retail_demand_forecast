@@ -3,7 +3,7 @@ import pickle
 
 import httpx
 import pika
-from model import echo_model
+from model import model
 
 
 def get_rmq(func):
@@ -42,10 +42,10 @@ def run(rmq, task_handler):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     channel = rmq.channel()
-    channel.queue_declare(queue='echo', durable=True)
+    channel.queue_declare(queue=model.name, durable=True)
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(
-        queue='echo',
+        queue=model.name,
         on_message_callback=callback,
         auto_ack=False  # Автоматическое подтверждение обработки сообщений
     )
@@ -54,10 +54,9 @@ def run(rmq, task_handler):
 
 def process_task(task):
     task = pickle.loads(task)
-    result = echo_model.run(task["input"])
+    result = model.run(task["input"])
     httpx.patch(task["callback_ep"], json={"output": result})
 
 
 if __name__ == '__main__':
     run(process_task)
-
