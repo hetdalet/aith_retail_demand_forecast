@@ -16,13 +16,13 @@ class Task(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[UUID]
-    ml_service: Mapped[str] = mapped_column(ForeignKey("ml_service.name"))
+    ml_service_name: Mapped[str] = mapped_column(ForeignKey("ml_service.name"))
     start: Mapped[datetime]
     end: Mapped[datetime | None]
     input: Mapped[str | None]
     output: Mapped[str | None]
 
-    service: Mapped["MLService"] = relationship()
+    ml_service: Mapped["MLService"] = relationship()
 
 
 class MLService(Base):
