@@ -1,10 +1,9 @@
 import os
 import pickle
-import time
 
 import httpx
 import pika
-from model import dummy_model
+from model import echo_model
 
 
 def get_rmq(func):
@@ -55,7 +54,7 @@ def run(rmq, task_handler):
 
 def process_task(task):
     task = pickle.loads(task)
-    result = dummy_model.run(task["input"])
+    result = echo_model.run(task["input"])
     httpx.patch(task["callback_ep"], json={"output": result})
 
 

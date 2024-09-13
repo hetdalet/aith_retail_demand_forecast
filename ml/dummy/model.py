@@ -13,7 +13,7 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 
-class DummyModel(metaclass=SingletonMeta):
+class EchoModel(metaclass=SingletonMeta):
 
     def __init__(self):
         self._model = None
@@ -28,4 +28,4 @@ class DummyModel(metaclass=SingletonMeta):
         return data.upper()
 
 
-dummy_model = DummyModel()
+echo_model = EchoModel()

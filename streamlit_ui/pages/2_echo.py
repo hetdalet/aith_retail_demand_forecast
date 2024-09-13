@@ -7,7 +7,6 @@ from streamlit_ui.backend import get_api
 
 
 api = get_api()
-user = st.session_state.user
 
 
 def poll_task(key: UUID):
@@ -23,7 +22,7 @@ def poll_task(key: UUID):
 st.header("Echo")
 st.write("The state of art NLP model. It can convert any text to uppercase7")
 
-response = api.get(f"/users/{user['id']}/tasks?sn=dummy")
+response = api.get(f"/models/echo/tasks")
 if response.status_code == 200:
     tasks = response.json()
 else:
@@ -56,7 +55,7 @@ if prompt := st.chat_input("What is up?"):
         st.markdown(prompt)
 
     with st.status("Processing...") as status:
-        response = api.post(f"/services/dummy/task", data={"input": prompt})
+        response = api.post(f"/models/echo/task", data={"input": prompt})
         if response.status_code != 200:
             msg = response.json()["detail"]
             status.update(label=msg, state="error", expanded=False)
