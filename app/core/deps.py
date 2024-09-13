@@ -6,10 +6,8 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
-from app.core import auth
 from app.core.db import SessionLocal
 from app.core.settings import settings
-from app.services import user as user_service
 
 
 def _get_session_local():
@@ -54,34 +52,3 @@ def get_rds():
         yield rds
     finally:
         rds.close()
-
-
-def get_cur_user_from_token(token: str = Depends(auth.oauth2_scheme),
-                            db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        token_data = auth.decode_token(token)
-    except Exception:
-        raise credentials_exception
-    user = user_service.get_by_email(db, email=token_data.username)
-    if user is None or user.deactivated is True:
-        raise credentials_exception
-    return user
-
-
-def get_cur_user_from_cookie(request: Request,
-                             db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    token = request.cookies.get(settings.cookie_name)
-    user = auth.authenticate_cookie(db, token)
-    if user is None or user.deactivated is True:
-        raise credentials_exception
-    return user

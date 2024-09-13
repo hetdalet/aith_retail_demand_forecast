@@ -9,8 +9,6 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from app.core.db import Base
-from app.domain_types import TransactionType
-from app.domain_types import ServicePricingType
 
 
 class Task(Base):
@@ -18,21 +16,17 @@ class Task(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[UUID]
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    service_name: Mapped[str] = mapped_column(ForeignKey("service.name"))
-    transaction_id: Mapped[int] = mapped_column(ForeignKey("transaction.id"))
+    ml_service: Mapped[str] = mapped_column(ForeignKey("ml_service.name"))
     start: Mapped[datetime]
     end: Mapped[datetime | None]
     input: Mapped[str | None]
     output: Mapped[str | None]
 
-    service: Mapped["Service"] = relationship()
+    service: Mapped["MLService"] = relationship()
 
 
-class Service(Base):
-    __tablename__ = "service"
+class MLService(Base):
+    __tablename__ = "ml_service"
 
     name: Mapped[str] = mapped_column(primary_key=True)
     description: Mapped[str | None]
-    pricing_type: Mapped[ServicePricingType]
-    price: Mapped[Decimal]

@@ -1,0 +1,158 @@
+services:
+    proxy:
+        build:
+            context: ./nginx
+        restart: always
+        volumes:
+            - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+        ports:
+            - 8080:80
+        networks:
+            - front_tier
+        depends_on:
+            app:
+                condition: service_healthy
+
+    app:
+        build:
+            context: ./app
+        volumes:
+            - ./app:/app
+        environment:
+            POSTGRES_DB_FILE: ${POSTGRES_DB_FILE}
+            POSTGRES_USER_FILE: ${POSTGRES_USER_FILE}
+            POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE}
+            DB_HOST: ${DB_HOST}
+            DB_PORT: ${DB_PORT}
+            RABBITMQ_USER: ${RABBITMQ_USER}
+            RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+            REDIS_HOST: ${REDIS_HOST}
+            REDIS_PORT: ${REDIS_PORT}
+            APP_HOST: ${APP_HOST}
+            APP_PORT: ${APP_PORT}
+            ALEMBIC_CONFIG: ${ALEMBIC_CONFIG}
+            SECRETS_DIR: ${SECRETS_DIR}
+            COOKIE_NAME: ${COOKIE_NAME}
+        secrets:
+            - postgres_db
+            - postgres_user
+            - postgres_password
+        networks:
+            - front_tier
+            - back_tier
+        expose:
+            - ${APP_PORT}
+            - 8501
+        ports:
+            - ${APP_PORT}:${APP_PORT}
+            - 8501:8501
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+
+    ui:
+        build:
+            context: ./streamlit_ui
+        volumes:
+            - ./streamlit_ui:/streamlit_ui
+        environment:
+            STREAMLIT_SERVER_PORT: ${STREAMLIT_SERVER_PORT}
+            APP_HOST: ${APP_HOST}
+            APP_PORT: ${APP_PORT}
+            COOKIE_NAME: ${COOKIE_NAME}
+        networks:
+            - front_tier
+            - back_tier
+        expose:
+            - ${STREAMLIT_SERVER_PORT}
+        ports:
+            - ${STREAMLIT_SERVER_PORT}:${STREAMLIT_SERVER_PORT}
+        depends_on:
+            app:
+                condition: service_healthy
+
+    postgres:
+        build:
+            context: ./postgres
+        user: postgres
+        environment:
+            POSTGRES_DB_FILE: ${POSTGRES_DB_FILE}
+            POSTGRES_USER_FILE: ${POSTGRES_USER_FILE}
+            POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE}
+            DB_PORT: ${DB_PORT}
+        secrets:
+            - postgres_db
+            - postgres_user
+            - postgres_password
+        expose:
+            - ${DB_PORT}
+        ports:
+            - ${DB_PORT}:${DB_PORT}
+        networks:
+            back_tier:
+                aliases:
+                    - ${DB_HOST}
+        command: -p "${DB_PORT}"
+
+    rabbitmq:
+        build:
+            context: ./rabbitmq
+        restart: always
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+            RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbit disk_free_limit ${RABBITMQ_DISK_FREE_LIMIT}
+        networks:
+            - back_tier
+        expose:
+            - ${RABBITMQ_PORT}
+            - ${RABBITMQ_UI_PORT}
+        ports:
+            - ${RABBITMQ_PORT}:${RABBITMQ_PORT}
+            - ${RABBITMQ_UI_PORT}:${RABBITMQ_UI_PORT}
+
+    redis:
+        image: redis:7.2.4-alpine3.19
+        expose:
+            - ${REDIS_PORT}
+        ports:
+            - ${REDIS_PORT}:${REDIS_PORT}
+        healthcheck:
+            test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+        networks:
+            - back_tier
+
+    dummy:
+        build:
+            context: ml/dummy
+        restart: always
+        environment:
+            RABBITMQ_USER: ${RABBITMQ_USER}
+            RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+        volumes:
+            - ./ml/dummy:/model
+        networks:
+            - back_tier
+        deploy:
+            replicas: 3
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
+
+networks:
+      front_tier: {}
+      back_tier: {}
+
+secrets:
+    postgres_db:
+        file: postgres/db.secret
+    postgres_user:
+        file: postgres/user.secret
+    postgres_password:
+        file: postgres/password.secret
