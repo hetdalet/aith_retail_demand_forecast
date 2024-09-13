@@ -42,10 +42,10 @@ def run(rmq, task_handler):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
     channel = rmq.channel()
-    channel.queue_declare(queue='dummy', durable=True)
+    channel.queue_declare(queue='echo', durable=True)
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(
-        queue='dummy',
+        queue='echo',
         on_message_callback=callback,
         auto_ack=False  # Автоматическое подтверждение обработки сообщений
     )

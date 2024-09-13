@@ -128,7 +128,7 @@ services:
 
     dummy:
         build:
-            context: ml/dummy
+            context: ml/echo
         restart: always
         environment:
             RABBITMQ_USER: ${RABBITMQ_USER}
@@ -136,7 +136,7 @@ services:
             RABBITMQ_HOST: ${RABBITMQ_HOST}
             RABBITMQ_PORT: ${RABBITMQ_PORT}
         volumes:
-            - ./ml/dummy:/model
+            - ./ml/echo:/model
         networks:
             - back_tier
         deploy:
