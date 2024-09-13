@@ -27,6 +27,8 @@ def create(db_model: Base,
     db.add(db_item)
     db.flush()
     db.refresh(db_item)
+    print('REPOSITORY:', db_item, flush=True)
+    print('REPOSITORY:', dir(db_item), flush=True)
     return result_schema.model_validate(db_item)
 
 

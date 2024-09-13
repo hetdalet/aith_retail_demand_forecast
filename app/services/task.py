@@ -56,7 +56,7 @@ def create_task(db: Session,
             key=uuid4(),
             input=task.input,
             start=datetime.now(),
-            service_name=service_name,
+            ml_service_name=service_name,
         ),
         result_schema=TaskStart,
         db=db
@@ -66,8 +66,8 @@ def create_task(db: Session,
 
 def send_task_to_queue(rmq: RMQConn, task: TaskDB):
     channel = rmq.channel()
-    service_name = task.service.name
-    channel.queue_declare(queue=service_name, durable=True)
+    ml_service_name = task.ml_service.name
+    channel.queue_declare(queue=ml_service_name, durable=True)
     app_host = settings.app_host
     app_port = settings.app_port
     message = pickle.dumps({
@@ -77,7 +77,7 @@ def send_task_to_queue(rmq: RMQConn, task: TaskDB):
     })
     channel.basic_publish(
         exchange='',
-        routing_key=service_name,
+        routing_key=ml_service_name,
         body=message,
         properties=pika.BasicProperties(
             delivery_mode=pika.DeliveryMode.Persistent

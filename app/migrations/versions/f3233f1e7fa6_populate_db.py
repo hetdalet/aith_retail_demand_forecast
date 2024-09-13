@@ -1,7 +1,7 @@
 """Populate DB
 
 Revision ID: f3233f1e7fa6
-Revises: 0abe79a62583
+Revises: 3acc466475a7
 Create Date: 2024-09-13 09:52:46.816872
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'f3233f1e7fa6'
-down_revision: Union[str, None] = '0abe79a62583'
+down_revision: Union[str, None] = '3acc466475a7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

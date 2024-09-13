@@ -19,9 +19,7 @@ class TaskBase(BaseModel):
 class TaskInsert(TaskBase):
     key: UUID
     start: datetime
-    user_id: int
-    service_name: str
-    transaction_id: int
+    ml_service_name: str
 
     class Config:
         from_attributes = True

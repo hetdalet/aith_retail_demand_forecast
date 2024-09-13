@@ -33,7 +33,7 @@ def list_tasks(service_name: str,
                limit: int = None,
                offset: int = None,
                db: Session = Depends(deps.get_db)):
-    options = [("ml_service", "==", service_name)]
+    options = [("ml_service_name", "==", service_name)]
     tasks = task_service.list_by_options(
         db=db,
         options=options,
