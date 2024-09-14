@@ -105,6 +105,17 @@ class ProphetCatboost:
         future_forecast = prophet_model.forecast(len(future_regressor), future_regressors=future_regressor, fill_data={'sell_price': data['sell_price'].mean()})
         new_data_with_forecast = future_regressor.merge(future_forecast, on='ds', how='left')
         catboost_model = OptunaCatBoostRegressor.load(catboost_model_file)
+
+        # Fill missing columns with zero
+        for col in catboost_model.features:
+            if col not in new_data_with_forecast.columns:
+                new_data_with_forecast[col] = 0
+            else:
+                # Fill NaN values with zero
+                new_data_with_forecast[col].fillna(0, inplace=True)
+        
+        print(new_data_with_forecast, new_data_with_forecast)
+
         predictions = catboost_model.predict(new_data_with_forecast[catboost_model.features])
         if future_df is not None:
             predictions = predictions[-len(future_df):]
@@ -190,7 +201,7 @@ class ProphetCatboost:
         sales_data = data[1:]
         df = pd.DataFrame(sales_data)
         df['ds'] = pd.to_datetime(df['ds'])
-        df['sell_price'] = pd.to_numeric(df['sell_price']) + 0.0001
+        df['sell_price'] = pd.to_numeric(df['sell_price']) + 0.1
         df['cashback'] = pd.to_numeric(df['cashback']) + 0.0000000001
         df = df[['ds', 'sell_price', 'cashback']]
         print(df)
@@ -198,3 +209,5 @@ class ProphetCatboost:
         return json.dumps(list_of_strings)
 
 model = ProphetCatboost()
+# print(model.run('''[{"item_id": "360", "store_id": "STORE_3"}, {"ds": "2016-04-13", "sell_price": "2.88", "cashback": "1"}, {"ds": "2013-04-14", "sell_price": "2.88", "cashback": "0"}, {"ds": "2013-04-15", "sell_price": "2.88", "cashback": "1"}]
+# '''))
