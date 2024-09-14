@@ -1,7 +1,6 @@
 import itertools
 import json
 import time
-from datetime import datetime
 from uuid import UUID
 
 import pandas as pd
@@ -81,9 +80,9 @@ if (uploaded_sales is not None and
                 .merge(sales_dates, on='date_id', how='left')
                 .merge(sales_prices, on=['item_id', 'store_id', 'wm_yr_wk'], how='left')
                 .loc[:, ['item_id', 'store_id', 'date', 'sell_price', 'CASHBACK_STORE_1', 'CASHBACK_STORE_2', 'CASHBACK_STORE_3']]
+                .dropna()
             )
-        # data_size = len(merged)
-        data_size = 10
+        data_size = len(merged.groupby(['item_id', 'store_id']))
         forecasts = []
         progress_bar = st.progress(0, text="Forecasting")
         count = 0
