@@ -190,18 +190,11 @@ class ProphetCatboost:
         sales_data = data[1:]
         df = pd.DataFrame(sales_data)
         df['ds'] = pd.to_datetime(df['ds'])
-        df['sell_price'] = pd.to_numeric(df['sell_cost'])
-        df['cashback'] = pd.to_numeric(df['cashback'])
+        df['sell_price'] = pd.to_numeric(df['sell_price']) + 0.0001
+        df['cashback'] = pd.to_numeric(df['cashback']) + 0.0000000001
         df = df[['ds', 'sell_price', 'cashback']]
         print(df)
         list_of_strings = [f"{x:.1f}" for x in self.predict(item_id, store_id, future_df=df)]
         return json.dumps(list_of_strings)
 
 model = ProphetCatboost()
-# model.fit()
-# print(model.run('''[
-# {"item_id": "012", "store_id": "STORE_3"},
-#     {"ds": "2016-01-22", "sell_cost": "6.3", "cashback": "0"},
-#     {"ds": "2016-01-23", "sell_cost": "6.3", "cashback": "0"},
-#     {"ds": "2016-01-24", "sell_cost": "6.27", "cashback": "1"}
-# ]'''))
