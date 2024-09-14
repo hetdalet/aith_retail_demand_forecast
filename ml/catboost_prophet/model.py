@@ -114,7 +114,6 @@ class ProphetCatboost:
                 # Fill NaN values with zero
                 new_data_with_forecast[col].fillna(0, inplace=True)
         
-        print(new_data_with_forecast, new_data_with_forecast)
 
         predictions = catboost_model.predict(new_data_with_forecast[catboost_model.features])
         if future_df is not None:
