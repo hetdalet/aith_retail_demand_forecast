@@ -1,6 +1,8 @@
+import datetime
 import os
 import re
 import json
+import time
 import joblib
 import optuna
 import random
@@ -62,12 +64,12 @@ class ProphetsEnsemble:
         self.h_getter = holidays_getter
         self.prophets_ = dict()
         self.is_fitted_ = False
-    
+
     @staticmethod
     def _resample(data: pd.DataFrame, freq: str, how: str) -> pd.DataFrame:
         """Resamples a time series DataFrame."""
         if how not in ['median', 'mean', 'sum']:
-            raise NotImplementedError(f'Unknown function {how}. Only [median, mean, sum] are supported.') 
+            raise NotImplementedError(f'Unknown function {how}. Only [median, mean, sum] are supported.')
         return data.set_index('ds').resample(freq).agg(how).reset_index(drop=False)
 
     @staticmethod
@@ -81,7 +83,7 @@ class ProphetsEnsemble:
         elif freq == 'W':
             return f'{x.isocalendar().year}-{x.isocalendar().week}'
         raise NotImplementedError(f'Only [H, D, W, M] are supported. {freq} was received as input!')
-    
+
     def _get_holidays(self, data: pd.DataFrame) -> Optional[pd.DataFrame]:
         """Extracts holidays from the data."""
         if self.h_getter is None:
@@ -89,7 +91,7 @@ class ProphetsEnsemble:
         holidays = data[['ds']].copy()
         holidays['holiday'] = holidays['ds'].apply(self.h_getter.get)
         return holidays.dropna()
-    
+
     def _fit_level(self, data: pd.DataFrame, level: str) -> None:
         """Fits a Prophet model for a specific aggregation level."""
         resampled = self._resample(data, *level.split('_')) if level != self.freq else data.copy()
@@ -99,7 +101,7 @@ class ProphetsEnsemble:
         with suppress_stdout_stderr():
             fb.fit(resampled)
         self.prophets_[level] = fb
-        
+
     def _predict_level(self, periods: int, level: str, future_regressors: Optional[pd.DataFrame]) -> pd.DataFrame:
         """Makes predictions for a specific aggregation level."""
         fb = self.prophets_[level]
@@ -112,7 +114,7 @@ class ProphetsEnsemble:
         forecasts = fb.predict(df)
         forecasts.columns = [f'{x}_{level}' for x in forecasts.columns]
         return forecasts
-    
+
     def _combine_levels(self, base_df: pd.DataFrame, data: pd.DataFrame, level: str) -> pd.DataFrame:
         """Combines predictions from different aggregation levels."""
         key = lambda x: self._merge_key_gen(x, level)
@@ -121,31 +123,31 @@ class ProphetsEnsemble:
             .merge(data.assign(key=data[f'ds_{level}'].apply(key)), on='key', how='left')
             .drop(['key', f'ds_{level}'], axis=1)
         )
-    
+
     @staticmethod
     def _drop_redundant(data: pd.DataFrame) -> pd.DataFrame:
         """Drops redundant features from the DataFrame."""
         redundant = [col for col in data.columns if col != 'ds' and 'yhat' not in col and len(data[col].unique()) == 1]
         return data.drop(redundant, axis=1)
-    
+
     def fit(self, data: pd.DataFrame) -> None:
         """Fits the Prophet models for all aggregation levels."""
         for level in tqdm([self.freq] + self.levels, 'Fitting prophets...'):
             self._fit_level(data, level)
         self.is_fitted_ = True
-            
+
     def forecast(self, periods: int, future_regressors: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         """Makes forecasts for all aggregation levels and combines them."""
         assert self.is_fitted_, 'Model is not fitted'
         forecasts = [
-            self._predict_level(periods, level, future_regressors) 
+            self._predict_level(periods, level, future_regressors)
             for level in tqdm([self.freq] + self.levels, 'Forecasting...')
         ]
-        
+
         forecast = forecasts[0].rename(columns={f'ds_{self.freq}': 'ds', f'yhat_{self.freq}': 'yhat'})
         for level, fore in zip(self.levels, forecasts[1:]):
             forecast = self._combine_levels(forecast, fore, level)
-            
+
         return self._drop_redundant(forecast)
 
 
@@ -199,7 +201,7 @@ class OptunaCatBoostRegressor:
         # Ensure there are no duplicate features
         self.features = list(x_train.columns)  # Changed from combining with sell_price, cashback
         X_val = x_val[self.features].copy()
-        
+
         # Ensure cat_features is handled correctly
         cat_features = self.cat_columns
         if cat_features is None:  # Automatically detect categorical features if not provided
@@ -251,11 +253,11 @@ class ProphetCatboost:
 
     name = 'catboost_prophet'
 
-    def __init__(self, 
-                 sales_path='ml/catboost_prophet/base_data/shop_sales.csv',
-                 dates_path='ml/catboost_prophet/base_data/shop_sales_dates.csv',
-                 prices_path='ml/catboost_prophet/base_data/shop_sales_prices.csv',
-                 models_path='/Users/dtikhanovskii/Documents/AiTalentHack_RetailDemandForecast/ml/catboost_prophet/models',
+    def __init__(self,
+                 sales_path='/model/base_data/shop_sales.csv',
+                 dates_path='/model/base_data/shop_sales_dates.csv',
+                 prices_path='/model/base_data/shop_sales_prices.csv',
+                 models_path='/model/models',
                  n_estimators=1000, learning_rate=0.02, metric='RMSE', seed=42):
         self.sales_data_with_prices, self.sales_dates_data = self._preprocess_files(sales_path, dates_path, prices_path)
         self.models_path = models_path
@@ -263,7 +265,7 @@ class ProphetCatboost:
         self.learning_rate=learning_rate
         self.metric=metric
         self.seed=seed
-    
+
     @staticmethod
     def _preprocess_files(sales_path, dates_path, prices_path):
         sales_data = pd.read_csv(sales_path)
@@ -287,15 +289,15 @@ class ProphetCatboost:
         item_store_data = sales_data_with_prices[(self.sales_data_with_prices['true_item_id'] == item_id) & (sales_data_with_prices['store_id'] == store_id)]
         item_store_data['date'] = pd.to_datetime(item_store_data['date'])
         item_store_data = item_store_data[['date', 'cnt', 'sell_price', 'cashback']]
-    
+
         # Fill missing values in 'sell_price' using forward fill, then backfill as a safety net
         sales_data_with_prices['sell_price'] = sales_data_with_prices['sell_price'].ffill().bfill()
         # Fill any remaining NaNs in 'sell_price' with the mean value of the entire column
         sales_data_with_prices['sell_price'] = sales_data_with_prices['sell_price'].fillna(sales_data_with_prices['sell_price'].mean())
-    
+
         # Ensure all NaNs in 'cashback' are filled with 0
         sales_data_with_prices['cashback'] = sales_data_with_prices['cashback'].fillna(0)
-    
+
         # Filter data for the specific item and store
         item_store_data = sales_data_with_prices[(sales_data_with_prices['true_item_id'] == item_id) & (sales_data_with_prices['store_id'] == store_id)]
         item_store_data['date'] = pd.to_datetime(item_store_data['date'])
@@ -306,20 +308,20 @@ class ProphetCatboost:
         item_store_data['cashback'] = item_store_data['cashback'].fillna(0)
 
         return item_store_data
-    
+
     def predict(self, item_id, store_id, steps=30, future_df=None):
         data = self._get_item_store_data(item_id, store_id)
         model_dir = os.path.join(self.models_path, store_id, item_id)
         store_dir = os.path.join(self.models_path, store_id)
         model_dir = os.path.join(store_dir, item_id)
-    
+
         if not os.path.exists(model_dir):
             random_item_id = get_random_subfolder(store_dir)
             if random_item_id:
                 model_dir = os.path.join(store_dir, random_item_id)
             else:
                 raise FileNotFoundError(f"Cold start store -  {store_dir}.")
-    
+
         prophet_model_file = os.path.join(model_dir, f'prophet_model.pkl')
         catboost_model_file = os.path.join(model_dir, f'catboost_model.pkl')
 
@@ -351,63 +353,63 @@ class ProphetCatboost:
         if future_df is not None:
             predictions = predictions[-len(future_df):]
         return predictions
-    
+
     def _fit_one_user_store(self, item_id, store_id, models_path):
         data = self._get_item_store_data(item_id, store_id)
-        
+
         # Generate holidays within the date range
         cal = USFederalHolidayCalendar()
         holidays = cal.holidays(start=data['date'].min(), end=data['date'].max())
-        
+
         # Initialize the ProphetsEnsemble with holiday information
         pe = ProphetsEnsemble(
-            freq='D', 
-            levels=['W', 'M'], 
-            agg_fn=['median'], 
+            freq='D',
+            levels=['W', 'M'],
+            agg_fn=['median'],
             holidays_getter=pd.DataFrame({'ds': holidays, 'holiday': 'us_holiday'})
         )
-        
+
         # Rename columns to fit Prophet's expected input format
         prophet_data = data.rename(columns={'date': 'ds', 'cnt': 'y'})
-        
+
         # Fit the Prophet ensemble model to all data
         pe.fit(prophet_data)
-        
+
         # Prepare future data for forecasting, including regressors
         future_dates = pd.DataFrame({
             'ds': pd.date_range(start=data['date'].max(), periods=30, freq='D'),  # Adjust the period as needed
             'sell_price': [data['sell_price'].mean()] * 30,  # Using mean sell_price for future
             'cashback': [0] * 30  # Setting cashback to 0 for future
         })
-    
+
         # Forecast using the ensemble model
         pe_forecast = pe.forecast(len(future_dates), future_regressors=future_dates)
-        
+
         # Merge forecast with the original data for CatBoost training
         gbt_data = prophet_data.merge(pe_forecast, on='ds', how='left')
-    
+
         # Split a small portion of the data for validation
         train_gbt, val_gbt = train_test_split(gbt_data, test_size=0.1, random_state=42)
-        
+
         # Train CatBoost model using the ensemble forecast as input features
         catboost = OptunaCatBoostRegressor(n_estimators=self.n_estimators, learning_rate=self.learning_rate, metric=self.metric, seed=self.seed)
         catboost.fit(
-            X_train=train_gbt.drop(['ds', 'y'], axis=1), 
+            X_train=train_gbt.drop(['ds', 'y'], axis=1),
             y_train=train_gbt['y'].values,
-            X_val=val_gbt.drop(['ds', 'y'], axis=1), 
+            X_val=val_gbt.drop(['ds', 'y'], axis=1),
             y_val=val_gbt['y'].values
         )
-        
+
         # Define model directory and save the models
         model_dir = os.path.join(models_path, store_id, item_id)
         os.makedirs(model_dir, exist_ok=True)
-        
+
         prophet_model_file = os.path.join(model_dir, 'prophet_model.pkl')
         catboost_model_file = os.path.join(model_dir, 'catboost_model.pkl')
-        
+
         joblib.dump(pe, prophet_model_file)
         joblib.dump(catboost, catboost_model_file)
-        
+
     def fit(self, models_path=None, sales_path=None, dates_path=None, prices_path=None):
         if sales_path is not None:
             self.sales_data_with_prices, self.sales_dates_data = self._preprocess_files(sales_path, dates_path, prices_path)
@@ -425,10 +427,23 @@ class ProphetCatboost:
         item_id = item_info['item_id']
         store_id = item_info['store_id']
 
-        sales_data = data[1:]
+        sales_data = [
+            {
+                'ds': pd.Timestamp(datetime.date.fromisoformat(item['ds'])),
+                'sell_price': float(item['sell_price']),
+                'cashback': int(item['cashback']),
+            }
+            for item in data[1:]
+        ]
         df = pd.DataFrame(sales_data)
         list_of_strings = [f"{x:.1f}" for x in self.predict(item_id, store_id, future_df=df)]
+        # list_of_strings = [
+        #     f"{x:.1f}"
+        #     # for x in self.predict(item_id, store_id, future_df=df)
+        #     for x in [random.randint(0, 20) * random.random() for _ in range(len(data) - 1)]
+        # ]
+        time.sleep(random.random())
         return json.dumps(list_of_strings)
-        
+
 
 model = ProphetCatboost()
