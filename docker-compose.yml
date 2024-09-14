@@ -126,7 +126,7 @@ services:
         networks:
             - back_tier
 
-    dummy:
+    echo:
         build:
             context: ml/echo
         restart: always
@@ -137,6 +137,25 @@ services:
             RABBITMQ_PORT: ${RABBITMQ_PORT}
         volumes:
             - ./ml/echo:/model
+        networks:
+            - back_tier
+        deploy:
+            replicas: 1
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
+
+    catboost_prophet:
+        build:
+            context: ml/catboost_prophet
+        restart: always
+        environment:
+            RABBITMQ_USER: ${RABBITMQ_USER}
+            RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+            RABBITMQ_HOST: ${RABBITMQ_HOST}
+            RABBITMQ_PORT: ${RABBITMQ_PORT}
+        volumes:
+            - ./ml/catboost_prophet:/model
         networks:
             - back_tier
         deploy:

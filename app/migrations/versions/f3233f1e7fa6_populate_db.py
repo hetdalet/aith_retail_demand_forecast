@@ -29,6 +29,10 @@ def upgrade() -> None:
             "name": "echo",
             "description": "Echo model",
         },
+        {
+            "name": "catboost_prophet",
+            "description": "Demand forecasting model",
+        },
     ]
     op.bulk_insert(service_table, service_data)
 
