@@ -20,11 +20,11 @@ class ProphetCatboost:
 
     name = 'catboost_prophet'
 
-    def __init__(self, 
-                 sales_path='ml/catboost_prophet/base_data/shop_sales.csv',
-                 dates_path='ml/catboost_prophet/base_data/shop_sales_dates.csv',
-                 prices_path='ml/catboost_prophet/base_data/shop_sales_prices.csv',
-                 models_path='ml/catboost_prophet/models',
+    def __init__(self,
+                 sales_path='/model/base_data/shop_sales.csv',
+                 dates_path='/model/base_data/shop_sales_dates.csv',
+                 prices_path='/model/base_data/shop_sales_prices.csv',
+                 models_path='/model/models',
                  n_estimators=1000, learning_rate=0.02, metric='RMSE', seed=42):
         self.sales_data_with_prices, self.sales_dates_data = self._preprocess_files(sales_path, dates_path, prices_path)
         self.models_path = models_path
@@ -56,34 +56,34 @@ class ProphetCatboost:
         item_store_data = sales_data_with_prices[(sales_data_with_prices['true_item_id'] == item_id) & (sales_data_with_prices['store_id'] == store_id)]
         item_store_data['date'] = pd.to_datetime(item_store_data['date'])
         item_store_data = item_store_data[['date', 'cnt', 'sell_price', 'cashback']]
-    
+
         # Fill missing values in 'sell_price' using forward fill, then backfill as a safety net
         item_store_data['sell_price'] = item_store_data['sell_price'].ffill().bfill()
         # Fill any remaining NaNs in 'sell_price' with the mean value of the entire column
         item_store_data['sell_price'] = item_store_data['sell_price'].fillna(item_store_data['sell_price'].mean())
-    
+
         # Ensure all NaNs in 'cashback' are filled with 0
         item_store_data['cashback'] = item_store_data['cashback'].fillna(0)
-    
+
         return item_store_data
 
     def predict(self, item_id, store_id, steps=30, future_df=None):
         data = self._get_item_store_data(item_id, store_id)
         store_dir = os.path.join(self.models_path, store_id)
         model_dir = os.path.join(store_dir, item_id)
-    
+
         if not os.path.exists(model_dir):
             random_item_id = get_random_subfolder(store_dir)
             if random_item_id:
                 model_dir = os.path.join(store_dir, random_item_id)
             else:
                 raise FileNotFoundError(f"Cold start store - {store_dir}.")
-    
+
         prophet_model_file = os.path.join(model_dir, f'prophet_model.json')
         catboost_model_file = os.path.join(model_dir, f'catboost_model.cbm')
-    
+
         end_date = data.date.max()
-    
+
         if future_df is None:
             future_regressor = pd.DataFrame({
                 'ds': pd.date_range(start=end_date + pd.Timedelta(days=1), periods=steps, freq='D'),
@@ -100,7 +100,7 @@ class ProphetCatboost:
             future_regressor['sell_price'].fillna(mean_sell_price, inplace=True)
             future_regressor['cashback'].fillna(0, inplace=True)
             future_regressor = future_regressor.rename(columns={'date': 'ds'})
-    
+
         prophet_model = ProphetsEnsemble.load(prophet_model_file)
         future_forecast = prophet_model.forecast(len(future_regressor), future_regressors=future_regressor, fill_data={'sell_price': data['sell_price'].mean()})
         new_data_with_forecast = future_regressor.merge(future_forecast, on='ds', how='left')
@@ -113,7 +113,7 @@ class ProphetCatboost:
             else:
                 # Fill NaN values with zero
                 new_data_with_forecast[col].fillna(0, inplace=True)
-        
+
 
         predictions = catboost_model.predict(new_data_with_forecast[catboost_model.features])
         if future_df is not None:
@@ -122,25 +122,25 @@ class ProphetCatboost:
 
     def _fit_one_user_store(self, item_id, store_id, models_path):
         data = self._get_item_store_data(item_id, store_id)
-        
+
         # Generate holidays within the date range
         cal = USFederalHolidayCalendar()
         holidays = cal.holidays(start=data['date'].min(), end=data['date'].max())
-        
+
         # Initialize the ProphetsEnsemble with holiday information
         pe = ProphetsEnsemble(
-            freq='D', 
-            levels=['W', 'M'], 
-            agg_fn=['median'], 
+            freq='D',
+            levels=['W', 'M'],
+            agg_fn=['median'],
             holidays_getter=pd.DataFrame({'ds': holidays, 'holiday': 'us_holiday'})
         )
-        
+
         # Rename columns to fit Prophet's expected input format
         prophet_data = data.rename(columns={'date': 'ds', 'cnt': 'y'})
-        
+
         # Fit the Prophet ensemble model to all data
         pe.fit(prophet_data)
-        
+
         # Prepare future data for forecasting, including regressors
         future_dates = pd.DataFrame({
             'ds': pd.date_range(start=data['date'].max() + pd.Timedelta(days=1), periods=30, freq='D'),  # Adjust the period as needed
@@ -149,13 +149,13 @@ class ProphetCatboost:
         })
         # Forecast using the ensemble model
         pe_forecast = pe.forecast(len(future_dates), future_regressors=future_dates, fill_data={'sell_price': data['sell_price'].mean()})
-        
+
         # Merge forecast with the original data for CatBoost training
         gbt_data = prophet_data.merge(pe_forecast, on='ds', how='left')
-    
+
         # Split a small portion of the data for validation
         train_gbt, val_gbt = train_test_split(gbt_data, test_size=0.1, random_state=42)
-        
+
         # Train CatBoost model using the ensemble forecast as input features
         catboost = OptunaCatBoostRegressor(
             n_estimators=self.n_estimators,
@@ -164,22 +164,22 @@ class ProphetCatboost:
             seed=self.seed
         )
         catboost.fit(
-            X_train=train_gbt.drop(['ds', 'y'], axis=1), 
+            X_train=train_gbt.drop(['ds', 'y'], axis=1),
             y_train=train_gbt['y'].values,
-            X_val=val_gbt.drop(['ds', 'y'], axis=1), 
+            X_val=val_gbt.drop(['ds', 'y'], axis=1),
             y_val=val_gbt['y'].values
         )
-        
+
         # Define model directory and save the models
         model_dir = os.path.join(models_path, store_id, item_id)
         os.makedirs(model_dir, exist_ok=True)
-        
+
         prophet_model_file = os.path.join(model_dir, 'prophet_model.json')
         catboost_model_file = os.path.join(model_dir, 'catboost_model.cbm')
-        
+
         pe.save(prophet_model_file)
         catboost.save(catboost_model_file)
-        
+
     def fit(self, models_path=None, sales_path=None, dates_path=None, prices_path=None):
         if sales_path is not None:
             self.sales_data_with_prices, self.sales_dates_data = self._preprocess_files(sales_path, dates_path, prices_path)
