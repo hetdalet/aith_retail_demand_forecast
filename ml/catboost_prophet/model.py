@@ -102,7 +102,7 @@ class ProphetCatboost:
             future_regressor = future_regressor.rename(columns={'date': 'ds'})
     
         prophet_model = ProphetsEnsemble.load(prophet_model_file)
-        future_forecast = prophet_model.forecast(len(future_regressor), future_regressors=future_regressor)
+        future_forecast = prophet_model.forecast(len(future_regressor), future_regressors=future_regressor, fill_data={'sell_price': data['sell_price'].mean()})
         new_data_with_forecast = future_regressor.merge(future_forecast, on='ds', how='left')
         catboost_model = OptunaCatBoostRegressor.load(catboost_model_file)
         predictions = catboost_model.predict(new_data_with_forecast[catboost_model.features])
@@ -137,9 +137,8 @@ class ProphetCatboost:
             'sell_price': [data['sell_price'].mean()] * 30,  # Using mean sell_price for future
             'cashback': [0] * 30  # Setting cashback to 0 for future
         })
-    
         # Forecast using the ensemble model
-        pe_forecast = pe.forecast(len(future_dates), future_regressors=future_dates)
+        pe_forecast = pe.forecast(len(future_dates), future_regressors=future_dates, fill_data={'sell_price': data['sell_price'].mean()})
         
         # Merge forecast with the original data for CatBoost training
         gbt_data = prophet_data.merge(pe_forecast, on='ds', how='left')
@@ -190,9 +189,19 @@ class ProphetCatboost:
 
         sales_data = data[1:]
         df = pd.DataFrame(sales_data)
+        df['ds'] = pd.to_datetime(df['ds'])
+        df['sell_price'] = pd.to_numeric(df['sell_cost'])
+        df['cashback'] = pd.to_numeric(df['cashback'])
+        df = df[['ds', 'sell_price', 'cashback']]
+        print(df)
         list_of_strings = [f"{x:.1f}" for x in self.predict(item_id, store_id, future_df=df)]
         return json.dumps(list_of_strings)
 
 model = ProphetCatboost()
 # model.fit()
-# print(model.predict('085', 'STORE_2'))
+# print(model.run('''[
+# {"item_id": "012", "store_id": "STORE_3"},
+#     {"ds": "2016-01-22", "sell_cost": "6.3", "cashback": "0"},
+#     {"ds": "2016-01-23", "sell_cost": "6.3", "cashback": "0"},
+#     {"ds": "2016-01-24", "sell_cost": "6.27", "cashback": "1"}
+# ]'''))

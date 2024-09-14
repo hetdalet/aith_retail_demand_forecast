@@ -75,14 +75,14 @@ class ProphetsEnsemble:
             fb.fit(resampled)
         self.prophets_[level] = fb
 
-    def _predict_level(self, periods: int, level: str, future_regressors: pd.DataFrame) -> pd.DataFrame:
+    def _predict_level(self, periods: int, level: str, future_regressors: pd.DataFrame, fill_data=None) -> pd.DataFrame:
         """Makes predictions for a specific aggregation level."""
         fb = self.prophets_[level]
         df = fb.make_future_dataframe(periods=periods, freq=level.split('_')[0])
         if future_regressors is not None:
             df = df.merge(future_regressors, on='ds', how='left')
             # Ensure no NaNs in the future data
-            df['sell_price'] = df['sell_price'].fillna(df['sell_price'].mean())
+            df['sell_price'] = df['sell_price'].fillna(df['sell_price'].mean()).fillna(fill_data['sell_price'])
             df['cashback'] = df['cashback'].fillna(0)
         forecasts = fb.predict(df)
         forecasts.columns = [f'{x}_{level}' for x in forecasts.columns]
@@ -109,11 +109,11 @@ class ProphetsEnsemble:
             self._fit_level(data, level)
         self.is_fitted_ = True
 
-    def forecast(self, periods: int, future_regressors: pd.DataFrame = None) -> pd.DataFrame:
+    def forecast(self, periods: int, future_regressors: pd.DataFrame = None, fill_data=None) -> pd.DataFrame:
         """Makes forecasts for all aggregation levels and combines them."""
         assert self.is_fitted_, 'Model is not fitted'
         forecasts = [
-            self._predict_level(periods, level, future_regressors) 
+            self._predict_level(periods, level, future_regressors, fill_data) 
             for level in tqdm([self.freq] + self.levels, desc='Forecasting...')
         ]
 
