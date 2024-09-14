@@ -243,7 +243,9 @@ class OptunaCatBoostRegressor:
         assert self.is_fitted_, 'Model is not fitted!'
         return self.model.predict(X_test[self.features])
 
-
+def get_random_subfolder(store_dir):
+    subfolders = [f.name for f in os.scandir(store_dir) if f.is_dir()]
+    return random.choice(subfolders) if subfolders else None
 
 class ProphetCatboost:
 
@@ -308,6 +310,15 @@ class ProphetCatboost:
     def predict(self, item_id, store_id, steps=30, future_df=None):
         data = self._get_item_store_data(item_id, store_id)
         model_dir = os.path.join(self.models_path, store_id, item_id)
+        store_dir = os.path.join(self.models_path, store_id)
+        model_dir = os.path.join(store_dir, item_id)
+    
+        if not os.path.exists(model_dir):
+            random_item_id = get_random_subfolder(store_dir)
+            if random_item_id:
+                model_dir = os.path.join(store_dir, random_item_id)
+            else:
+                raise FileNotFoundError(f"Cold start store -  {store_dir}.")
     
         prophet_model_file = os.path.join(model_dir, f'prophet_model.pkl')
         catboost_model_file = os.path.join(model_dir, f'catboost_model.pkl')
