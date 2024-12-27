@@ -1,104 +1,74 @@
-<img src="./images/sample_logo.png" alt="Logo of the project" align="right">
 
-# Name of our project
+# DFU-06
+
 [![Language](https://img.shields.io/badge/python-3.12.5-blue)](https://docs.python.org/3/)
 [![Team](https://img.shields.io/badge/таких%20yield%20вы%20ещё%20не%20видели-000080)](https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUXbmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXA%3D)
 [![Build Status](https://img.shields.io/badge/sample_text-with_hyperlink-green)](https://github.com/rudiandradi/AiTalentHack_RetailDemandForecast/tree/main)
 
-> Additional information or tag line
+Сервис прогнозирования спроса на розничные товары.
 
-A brief description of your project, what it is used for.
+## Стэк
 
-## Installing / Getting started
+- Catboost
+- Prophet
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Alembic
+- Streamlit
+- Nginx
 
-A quick introduction of the minimal setup you need to get a hello world up &
-running.
+## Архитектура сервиса
 
-```shell
-commands here
+<img src="./service_parts.png" alt="Схема сервиса" align="left">
+
+Сервис сотоит из следующих микросервисов:
+
+- API. Обеспечивает интерфейс для взаимодействия с моделью.
+- UI (Streamlit). Обеспечивает пользовательский интерфейс.
+- Брокер сообщений (RabbitMQ). Обеспечивает взаимодействие микросервиса API с моделями.
+- Пул моделей. Количество инстансов модели задается в настройках.
+
+Все микросервисы контейнеризованы. Каждый инстанс модели работает в отдельном контейнере. Оркестрацией занимается Docker Compose.
+
+## Структура проекта
+
+- app — реализация микросервиса API
+- streamlit_ui — реализация WebUI
+- ml — реализация воркеров запускающих модели
+
+## Развертывание
+
+Конфигурация сервиса хранится в файлах docker-compose.yml и .env (должен лежать в той же директории, что и docker-compose.yml. Пример .env файла:
+
+```
+POSTGRES_DB_FILE=/run/secrets/postgres_db
+POSTGRES_USER_FILE=/run/secrets/postgres_user
+POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+DB_HOST=db
+DB_PORT=5433
+RABBITMQ_USER=rmuser
+RABBITMQ_PASSWORD=rmpassword
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_UI_PORT=15672
+RABBITMQ_DISK_FREE_LIMIT=2147483648
+REDIS_HOST=redis
+REDIS_PORT=6379
+APP_HOST=app
+APP_PORT=8000
+STREAMLIT_SERVER_PORT=8502
+ALEMBIC_CONFIG=/app/alembic.ini
+SECRETS_DIR=/run/secrets
+COOKIE_NAME=mlbilling
 ```
 
-Here you should say what actually happens when you execute the code above.
+Переменные POSTGRES_DB_FILE, POSTGRES_USER_FILE, POSTGRES_PASSWORD_FILE указывают расположене секретов внутри запущенного контейнера PostgreSQL.
 
-## Developing
+Кроме того для запуска проекта в директорию postgres нужно поместить файлы db.secret, password.secret, user.secret, которые содержат название базы данных, пароль к базе данных, имя пользователя базы данных, соответственно.
 
-### Built With
-List main libraries, frameworks used including versions (React, Angular etc...)
-
-### Prerequisites
-What is needed to set up the dev environment. For instance, global dependencies or any other tools. include download links.
-
-
-### Setting up Dev
-
-Here's a brief intro about what a developer must do in order to start developing
-the project further:
+После того как все файлы помещены на положенные им места и заполнены, нужно из корня проекта выполнить команду
 
 ```shell
-git clone https://github.com/your/your-project.git
-cd your-project/
-packagemanager install
+docker compose up
 ```
-
-And state what happens step-by-step. If there is any virtual environment, local server or database feeder needed, explain here.
-
-### Building
-
-If your project needs some additional steps for the developer to build the
-project after some code changes, state them here. for example:
-
-```shell
-./configure
-make
-make install
-```
-
-Here again you should state what actually happens when the code above gets
-executed.
-
-### Deploying / Publishing
-give instructions on how to build and release a new version
-In case there's some step you have to take that publishes this project to a
-server, this is the right time to state it.
-
-```shell
-packagemanager deploy your-project -s server.com -u username -p password
-```
-
-And again you'd need to tell what the previous code actually does.
-
-## Versioning
-
-We can maybe use [SemVer](http://semver.org/) for versioning. For the versions available, see the [link to tags on this repository](/tags).
-
-
-## Configuration
-
-Here you should write what are all of the configurations a user can enter when using the project.
-
-## Tests
-
-Describe and show how to run the tests with code examples.
-Explain what these tests test and why.
-
-```shell
-Give an example
-```
-
-## Style guide
-
-Explain your code style and show how to check it.
-
-## Api Reference
-
-If the api is external, link to api documentation. If not describe your api including authentication methods as well as explaining all the endpoints with their required parameters.
-
-
-## Database
-
-Explaining what database (and version) has been used. Provide download links.
-Documents your database design and schemas, relations etc... 
-
-## Licensing
-
-State what the license is and how to find the text version of the license.

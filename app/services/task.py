@@ -11,20 +11,15 @@ from pika.connection import Connection as RMQConn
 from sqlalchemy.orm import Session
 
 from app.core.settings import settings
-from app.domain_types import TransactionType
 from app.models import Task as TaskDB
 from app.schemas import Task
 from app.schemas import TaskBase
 from app.schemas import TaskInsert
 from app.schemas import TaskStart
 from app.schemas import TaskFinish
-from app.schemas import TransactionCreate
-from app.schemas import User
 from app import repository
 
-from .service import get_service
-from .service import calc_service_price
-from .transaction import create_transaction
+from .ml_service import get_service
 
 
 def get_taskr(task_id: int, db: Session):
@@ -54,21 +49,14 @@ def list_by_options(db: Session,
 
 def create_task(db: Session,
                 task: TaskBase,
-                user: User,
                 service_name: str) -> TaskStart:
-    service = get_service(service_name, db)
-    price = calc_service_price(service, task.input)
-    transaction = TransactionCreate(type=TransactionType.wdr, amount=price)
-    transaction = create_transaction(db, transaction, user)
     task = repository.create(
         TaskDB,
         item=TaskInsert(
             key=uuid4(),
             input=task.input,
             start=datetime.now(),
-            user_id=user.id,
-            service_name=service_name,
-            transaction_id=transaction.id
+            ml_service_name=service_name,
         ),
         result_schema=TaskStart,
         db=db
@@ -78,8 +66,8 @@ def create_task(db: Session,
 
 def send_task_to_queue(rmq: RMQConn, task: TaskDB):
     channel = rmq.channel()
-    service_name = task.service.name
-    channel.queue_declare(queue=service_name, durable=True)
+    ml_service_name = task.ml_service.name
+    channel.queue_declare(queue=ml_service_name, durable=True)
     app_host = settings.app_host
     app_port = settings.app_port
     message = pickle.dumps({
@@ -89,7 +77,7 @@ def send_task_to_queue(rmq: RMQConn, task: TaskDB):
     })
     channel.basic_publish(
         exchange='',
-        routing_key=service_name,
+        routing_key=ml_service_name,
         body=message,
         properties=pika.BasicProperties(
             delivery_mode=pika.DeliveryMode.Persistent

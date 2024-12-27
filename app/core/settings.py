@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     redis_port: int
     app_host: str
     app_port: int
-    auth_secret_key: str = Field(alias="auth_secret_key")
     cookie_name: str
 
     @property
